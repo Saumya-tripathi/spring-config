@@ -1,0 +1,48 @@
+Spring Cloud Config works by centralizing application properties into a Config Server that manages configuration data from backends (like Git) and serves it to Config Clients (microservices) via HTTP. [1, 2, 3]
+Core Internal Components
+The system relies on several key abstractions to manage and serve configuration:
+
+• Config Server: A standard Spring Boot application annotated with . It acts as an intermediary, fetching raw configuration from a backend and exposing it as a RESTful API.
+• EnvironmentRepository: This is the core interface used by the server to locate and load configuration.
+
+	• Git Backend (Default): Uses JGit to clone a remote repository to a local temporary directory. It maps labels (branches/tags) to the configuration it serves.
+	• Native/File System: Loads files directly from the classpath or a local directory.
+	• Vault/JDBC: Supports secure secrets storage or relational databases for more dynamic needs.
+
+• Config Client: Microservices that use the  dependency to fetch properties during their startup sequence. [2, 3, 4, 5, 6, 7, 8]
+
+Lifecycle of a Configuration Request [9]
+The internal working can be summarized in these sequential stages:
+
+1. Bootstrap Phase (Client Start): When a client application starts, it creates a Bootstrap Application Context. This parent context loads essential properties from  or  (e.g., the Config Server URL and application name).
+2. Remote Fetch: The client sends a GET request to the server, typically in the format: .
+3. Server Resolution: The Config Server receives the request and uses its  to find the matching files in the backend. It prioritizes specific files (e.g., ) over global ones ().
+4. Property Integration: The server returns the configuration as a JSON object. The client then populates its  with these remote  objects, ensuring they have high precedence over local application properties.
+5. Main Context Startup: Only after these remote properties are loaded does the main Spring Application Context start, allowing beans to be initialized with the centralized values. [2, 8, 10, 11, 12]
+
+Real-Time Updates
+By default, clients only fetch configuration at startup. To update properties without a restart:
+
+• @RefreshScope: Beans annotated with this are re-created when a refresh event is triggered.
+• Actuator Endpoints: Clients can expose a  endpoint which, when called via POST, triggers the client to re-fetch its environment from the server.
+• Spring Cloud Bus: For large clusters, a message broker (like RabbitMQ or Kafka) can broadcast a refresh event to all instances simultaneously. [2, 3, 14, 15, 16]
+
+AI responses may include mistakes.
+
+[1] https://cloud.spring.io/spring-cloud-config/
+[2] https://www.nexsoftsys.com/articles/how-to-anatomy-of-spring-cloud-config-work.html
+[3] https://medium.com/@toimrank/spring-cloud-config-server-89eebf3a48f2
+[4] https://medium.com/@aravindcsebe/building-a-spring-cloud-config-server-and-client-reading-configuration-from-classpath-b35f2b92f4be
+[5] https://medium.com/@pravinbabu4u/spring-cloud-config-best-practices-19c51a71687d
+[6] https://www.youtube.com/watch?v=E2HkL766VHs
+[7] https://keyholesoftware.com/centralizing-configurations-with-spring-cloud-config/
+[8] https://cloud.spring.io/spring-cloud-config/multi/multi__spring_cloud_config_server.html
+[9] https://docs.spring.io/spring-amqp/docs/2.0.3.RELEASE/reference/html/_reference.html
+[10] https://cloud.spring.io/spring-cloud-static/spring-cloud.html
+[11] https://spring.io/guides/gs/centralized-configuration/
+[12] https://github.com/canchito-dev/spring-cloud-config
+[13] https://medium.com/but-it-works-on-my-machine/one-place-for-all-configs-mastering-spring-cloud-config-server-548a4da3d62b
+[14] https://medium.com/@erayaraz10/introduction-to-refreshscope-annotation-95d5dab4bcf1
+[15] https://www.youtube.com/watch?v=Mu6w2XLlJ6A
+[16] https://dzone.com/articles/setting-up-spring-cloud-config-client
+
